@@ -4,15 +4,11 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { authService } from "@/services/auth-service";
-import {
-  UsuarioCreate,
-  UsuarioLogin,
-  DoctorCreate,
-  UsuarioResponse,
-} from "@/types/api.types";
+import { UsuarioLogin, UsuarioResponse } from "@/types/api.types";
 import { useToast } from "@/hooks/use-toast";
 import { useState, useEffect } from "react";
 import type { RegisterSubmitData } from "@/features/auth/components/RegisterForm/types";
+import type { ProfessionalSubmitData } from "@/features/auth/components/ProfessionalRegisterForm/types";
 
 export function useAuth() {
   const router = useRouter();
@@ -26,10 +22,9 @@ export function useAuth() {
     setCurrentUser(user);
   }, []);
 
-  // Register patient mutation - CORREGIDO para usar la estructura correcta
+  // Register patient mutation
   const registerPatientMutation = useMutation({
     mutationFn: async (data: RegisterSubmitData) => {
-      // Transform RegisterSubmitData a PatientRegisterData (estructura anidada)
       const patientData = {
         usuario: {
           nombre: data.usuario.nombre,
@@ -53,15 +48,11 @@ export function useAuth() {
       };
 
       console.log("Enviando datos de paciente:", patientData);
-
-      // Use registerPatient con la estructura correcta
       const tokenResponse = await authService.registerPatient(patientData);
-
       return tokenResponse;
     },
     onSuccess: (response) => {
       setCurrentUser(response.usuario);
-
       toast({
         title: "¡Registro exitoso!",
         description: "Tu cuenta ha sido creada correctamente.",
@@ -77,40 +68,21 @@ export function useAuth() {
     },
   });
 
-  // Register doctor mutation - CORREGIDO para usar la estructura correcta
+  // Register doctor mutation - CORREGIDO ✅
   const registerDoctorMutation = useMutation({
-    mutationFn: async (data: {
-      usuario: Omit<UsuarioCreate, "tipo_usuario">;
-      doctor: Omit<DoctorCreate, "usuario_id">;
-    }) => {
-      // Transform a DoctorRegisterData (estructura anidada)
-      const doctorData = {
-        usuario: {
-          nombre: data.usuario.nombre,
-          apellido: data.usuario.apellido,
-          email: data.usuario.email,
-          telefono: data.usuario.telefono,
-          password: data.usuario.password,
-          tipo_usuario: "doctor" as const,
-        },
-        doctor: {
-          especialidad: data.doctor.especialidad,
-          cedula_profesional: data.doctor.cedula_profesional,
-          consultorio: data.doctor.consultorio,
-          horario_atencion: data.doctor.horario_atencion,
-          costo_consulta: data.doctor.costo_consulta,
-        },
-      };
+    mutationFn: async (data: ProfessionalSubmitData) => {
+      console.log("🔵 [useAuth] Datos recibidos:", data);
+      console.log(
+        "🟢 [useAuth] Enviando al servicio:",
+        JSON.stringify(data, null, 2)
+      );
 
-      console.log("Enviando datos de doctor:", doctorData);
-
-      // Use registerDoctor con la estructura correcta
-      const tokenResponse = await authService.registerDoctor(doctorData);
-
-      return { tokenResponse, doctorProfile: tokenResponse };
+      // ✅ Enviar los datos SIN transformar
+      const tokenResponse = await authService.registerDoctor(data);
+      return tokenResponse;
     },
-    onSuccess: ({ tokenResponse }) => {
-      setCurrentUser(tokenResponse.usuario);
+    onSuccess: (response) => {
+      setCurrentUser(response.usuario);
 
       toast({
         title: "¡Registro exitoso!",
@@ -118,10 +90,19 @@ export function useAuth() {
       });
       router.push("/doctor");
     },
-    onError: (error: Error) => {
+    onError: (error: any) => {
+      console.error("❌ Error en registro:", error);
+
+      if (error.response?.status === 422) {
+        console.error("📋 Error de validación:", error.response.data);
+      }
+
       toast({
         title: "Error en el registro",
-        description: error.message || "No se pudo completar el registro.",
+        description:
+          error.response?.data?.detail?.[0]?.msg ||
+          error.message ||
+          "No se pudo completar el registro.",
         variant: "destructive",
       });
     },
@@ -130,7 +111,6 @@ export function useAuth() {
   // Login mutation
   const loginMutation = useMutation({
     mutationFn: async (credentials: UsuarioLogin) => {
-      // Login now returns Token with usuario included
       const response = await authService.login(credentials);
       return response;
     },
@@ -142,7 +122,6 @@ export function useAuth() {
         description: `Bienvenido ${response.usuario.nombre}`,
       });
 
-      // Redirect based on user role
       const redirectPath =
         response.usuario.tipo_usuario === "doctor" ? "/doctor" : "/user";
       router.push(redirectPath);

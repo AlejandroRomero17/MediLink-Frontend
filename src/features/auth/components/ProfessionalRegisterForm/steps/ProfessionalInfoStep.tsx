@@ -4,11 +4,13 @@
 import { Stethoscope, Award, Building, DollarSign, Clock } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import type { ProfessionalFormData } from "../types";
+import { ScheduleManager } from "./ScheduleManager";
+import type { ProfessionalFormData, HorarioDoctor } from "../types";
 
 interface ProfessionalInfoStepProps {
   formData: ProfessionalFormData;
   onInputChange: (field: keyof ProfessionalFormData, value: string) => void;
+  onHorariosChange: (horarios: HorarioDoctor[]) => void;
   isLoading?: boolean;
 }
 
@@ -23,13 +25,22 @@ const ESPECIALIDADES_MAP: { value: string; label: string }[] = [
   { value: "traumatologia", label: "Traumatología" },
 ];
 
+const DURACIONES_CITA = [
+  { value: "15", label: "15 minutos" },
+  { value: "30", label: "30 minutos" },
+  { value: "45", label: "45 minutos" },
+  { value: "60", label: "60 minutos" },
+  { value: "90", label: "90 minutos" },
+];
+
 export const ProfessionalInfoStep = ({
   formData,
   onInputChange,
+  onHorariosChange,
   isLoading,
 }: ProfessionalInfoStepProps) => {
   return (
-    <>
+    <div className="space-y-5">
       {/* Especialidad */}
       <div className="space-y-2">
         <Label
@@ -108,33 +119,8 @@ export const ProfessionalInfoStep = ({
         </div>
       </div>
 
-      {/* Horario y Costo */}
+      {/* Costo y Duración */}
       <div className="grid grid-cols-2 gap-4">
-        <div className="space-y-2">
-          <Label
-            htmlFor="horario_atencion"
-            className="text-gray-900 dark:text-gray-200 font-medium"
-          >
-            Horario de Atención *
-          </Label>
-          <div className="relative">
-            <Clock className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-500 dark:text-gray-400" />
-            <Input
-              id="horario_atencion"
-              type="text"
-              placeholder="Lun-Vie 9:00-18:00"
-              value={formData.horario_atencion}
-              onChange={(e) =>
-                onInputChange("horario_atencion", e.target.value)
-              }
-              className="pl-12 h-12 rounded-xl border-gray-300 dark:border-slate-700 focus:border-blue-500 dark:focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 bg-white dark:bg-slate-900 text-gray-900 dark:text-white placeholder:text-gray-500 dark:placeholder:text-gray-500"
-              required
-              minLength={5}
-              disabled={isLoading}
-            />
-          </div>
-        </div>
-
         <div className="space-y-2">
           <Label
             htmlFor="costo_consulta"
@@ -158,7 +144,41 @@ export const ProfessionalInfoStep = ({
             />
           </div>
         </div>
+
+        <div className="space-y-2">
+          <Label
+            htmlFor="duracion_cita_minutos"
+            className="text-gray-900 dark:text-gray-200 font-medium"
+          >
+            Duración de Cita
+          </Label>
+          <div className="relative">
+            <Clock className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-500 dark:text-gray-400" />
+            <select
+              id="duracion_cita_minutos"
+              value={formData.duracion_cita_minutos || "30"}
+              onChange={(e) =>
+                onInputChange("duracion_cita_minutos", e.target.value)
+              }
+              className="w-full pl-12 h-12 rounded-xl border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-4 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 text-gray-900 dark:text-white"
+              disabled={isLoading}
+            >
+              {DURACIONES_CITA.map((dur) => (
+                <option key={dur.value} value={dur.value}>
+                  {dur.label}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
       </div>
-    </>
+
+      {/* Horarios de Atención */}
+      <ScheduleManager
+        horarios={formData.horarios}
+        onChange={onHorariosChange}
+        isLoading={isLoading}
+      />
+    </div>
   );
 };

@@ -12,7 +12,11 @@ import { BasicInfoStep } from "./steps/BasicInfoStep";
 import { ProfessionalInfoStep } from "./steps/ProfessionalInfoStep";
 import { AdditionalInfoStep } from "./steps/AdditionalInfoStep";
 import { SocialAuthButtons } from "../SocialAuthButtons";
-import type { ProfessionalFormData, ProfessionalSubmitData } from "./types";
+import type {
+  ProfessionalFormData,
+  ProfessionalSubmitData,
+  HorarioDoctor,
+} from "./types";
 
 interface ProfessionalRegisterFormProps {
   onSubmit: (data: ProfessionalSubmitData) => void;
@@ -50,15 +54,22 @@ export const ProfessionalRegisterForm = ({
     cedula_profesional: "",
     consultorio: "",
     costo_consulta: "",
-    horario_atencion: "",
+    duracion_cita_minutos: "30",
+    horarios: [],
     // Paso 3 - Información adicional (opcional)
     direccion_consultorio: "",
     ciudad: "",
     estado: "",
     codigo_postal: "",
+    latitud: "",
+    longitud: "",
     anos_experiencia: "",
     universidad: "",
     biografia: "",
+    foto_url: "",
+    acepta_seguro: false,
+    atiende_domicilio: false,
+    atiende_videollamada: false,
   });
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -66,45 +77,54 @@ export const ProfessionalRegisterForm = ({
 
     // ==================== PASO 1 ====================
     if (step === 1) {
-      // Validar que las contraseñas coincidan
       if (formData.password !== formData.confirmPassword) {
         alert("Las contraseñas no coinciden");
         return;
       }
 
-      // Validar que aceptó los términos
       if (!acceptTerms) {
         alert("Debes aceptar los términos y condiciones");
         return;
       }
 
-      // Avanzar al paso 2
       setStep(2);
       return;
     }
 
     // ==================== PASO 2 ====================
     if (step === 2) {
-      // Validar que todos los campos requeridos estén llenos
       if (
         !formData.especialidad ||
         !formData.cedula_profesional ||
         !formData.consultorio ||
-        !formData.costo_consulta ||
-        !formData.horario_atencion
+        !formData.costo_consulta
       ) {
         alert("Por favor completa todos los campos profesionales requeridos");
         return;
       }
 
-      // Validar que el costo sea válido
+      if (formData.horarios.length === 0) {
+        alert("Por favor agrega al menos un horario de atención");
+        return;
+      }
+
       const costoNumerico = parseFloat(formData.costo_consulta);
       if (isNaN(costoNumerico) || costoNumerico <= 0) {
         alert("Por favor ingresa un costo de consulta válido");
         return;
       }
 
-      // Avanzar al paso 3
+      const horariosInvalidos = formData.horarios.some((h) => {
+        return h.hora_inicio >= h.hora_fin;
+      });
+
+      if (horariosInvalidos) {
+        alert(
+          "La hora de inicio debe ser menor a la hora de fin en todos los horarios"
+        );
+        return;
+      }
+
       setStep(3);
       return;
     }
@@ -120,37 +140,60 @@ export const ProfessionalRegisterForm = ({
         tipo_usuario: "doctor",
       },
       doctor: {
-        // Campos requeridos del paso 2
+        // Campos requeridos
         especialidad: formData.especialidad,
         cedula_profesional: formData.cedula_profesional,
         consultorio: formData.consultorio,
-        horario_atencion: formData.horario_atencion,
         costo_consulta: parseFloat(formData.costo_consulta),
-        // Campos opcionales del paso 3
-        direccion_consultorio: formData.direccion_consultorio || undefined,
-        ciudad: formData.ciudad || undefined,
-        estado: formData.estado || undefined,
-        codigo_postal: formData.codigo_postal || undefined,
-        anos_experiencia: formData.anos_experiencia
-          ? parseInt(formData.anos_experiencia)
-          : undefined,
-        universidad: formData.universidad || undefined,
-        biografia: formData.biografia || undefined,
+
+        // Campos opcionales - solo incluir si tienen valor
+        ...(formData.direccion_consultorio && {
+          direccion_consultorio: formData.direccion_consultorio,
+        }),
+        ...(formData.ciudad && { ciudad: formData.ciudad }),
+        ...(formData.estado && { estado: formData.estado }),
+        ...(formData.codigo_postal && {
+          codigo_postal: formData.codigo_postal,
+        }),
+        ...(formData.latitud && {
+          latitud: parseFloat(formData.latitud),
+        }),
+        ...(formData.longitud && {
+          longitud: parseFloat(formData.longitud),
+        }),
+        ...(formData.anos_experiencia && {
+          anos_experiencia: parseInt(formData.anos_experiencia),
+        }),
+        ...(formData.duracion_cita_minutos && {
+          duracion_cita_minutos: parseInt(formData.duracion_cita_minutos),
+        }),
+        ...(formData.universidad && { universidad: formData.universidad }),
+        ...(formData.biografia && { biografia: formData.biografia }),
+        ...(formData.foto_url && { foto_url: formData.foto_url }),
+
+        // Booleanos - siempre incluir
+        acepta_seguro: formData.acepta_seguro,
+        atiende_domicilio: formData.atiende_domicilio,
+        atiende_videollamada: formData.atiende_videollamada,
       },
+      horarios: formData.horarios,
     };
 
-    console.log("Datos a enviar:", submitData);
+    console.log("📤 Datos a enviar:", submitData);
     onSubmit(submitData);
   };
 
   const handleInputChange = (
     field: keyof ProfessionalFormData,
-    value: string
+    value: string | boolean
   ) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
   };
 
-  // Validación del paso 1
+  const handleHorariosChange = (horarios: HorarioDoctor[]) => {
+    setFormData((prev) => ({ ...prev, horarios }));
+  };
+
   const isStep1Valid = () => {
     return (
       formData.nombre.length >= 2 &&
@@ -163,7 +206,6 @@ export const ProfessionalRegisterForm = ({
     );
   };
 
-  // Validación del paso 2
   const isStep2Valid = () => {
     return (
       formData.especialidad &&
@@ -171,11 +213,11 @@ export const ProfessionalRegisterForm = ({
       formData.consultorio.length >= 3 &&
       formData.costo_consulta &&
       parseFloat(formData.costo_consulta) > 0 &&
-      formData.horario_atencion.length >= 5
+      formData.horarios.length > 0 &&
+      formData.horarios.every((h) => h.hora_inicio < h.hora_fin)
     );
   };
 
-  // Renderizar el paso actual
   const renderStep = () => {
     switch (step) {
       case 1:
@@ -191,6 +233,7 @@ export const ProfessionalRegisterForm = ({
           <ProfessionalInfoStep
             formData={formData}
             onInputChange={handleInputChange}
+            onHorariosChange={handleHorariosChange}
             isLoading={isLoading}
           />
         );
@@ -207,7 +250,6 @@ export const ProfessionalRegisterForm = ({
     }
   };
 
-  // Texto del botón según el paso
   const getButtonText = () => {
     if (isLoading) return "Creando cuenta...";
     if (step === 1) return "Continuar";
@@ -280,7 +322,7 @@ export const ProfessionalRegisterForm = ({
       </div>
 
       {/* ==================== LADO DERECHO ==================== */}
-      <div className="flex items-center justify-center p-8 lg:p-12 bg-gray-50 dark:bg-slate-950">
+      <div className="flex items-center justify-center p-8 lg:p-12 bg-gray-50 dark:bg-slate-950 overflow-y-auto max-h-[85vh]">
         <div className="w-full max-w-md space-y-6">
           {/* Header con título y progreso */}
           <div className="text-center lg:text-left">
@@ -291,7 +333,7 @@ export const ProfessionalRegisterForm = ({
               {STEP_DESCRIPTIONS[step as keyof typeof STEP_DESCRIPTIONS]}
             </p>
 
-            {/* Indicador de progreso (3 bolitas) */}
+            {/* Indicador de progreso */}
             <div className="flex justify-center lg:justify-start space-x-2 mt-4">
               {[1, 2, 3].map((stepNum) => (
                 <div
@@ -310,7 +352,6 @@ export const ProfessionalRegisterForm = ({
 
           {/* Formulario */}
           <form onSubmit={handleSubmit} className="space-y-5">
-            {/* Renderizar el paso actual */}
             {renderStep()}
 
             {/* Términos y condiciones (solo en paso 1) */}
@@ -343,7 +384,6 @@ export const ProfessionalRegisterForm = ({
 
             {/* Botones de navegación */}
             <div className="flex gap-3">
-              {/* Botón Atrás (solo si no es el paso 1) */}
               {step > 1 && (
                 <Button
                   type="button"
@@ -356,7 +396,6 @@ export const ProfessionalRegisterForm = ({
                 </Button>
               )}
 
-              {/* Botón Continuar/Siguiente/Completar */}
               <Button
                 type="submit"
                 disabled={

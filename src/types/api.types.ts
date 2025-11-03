@@ -143,3 +143,7 @@ export interface Token {
   token_type: string;
   usuario: UsuarioResponse;  // ← Más completo que jwt.types
 }
+
+
+
+

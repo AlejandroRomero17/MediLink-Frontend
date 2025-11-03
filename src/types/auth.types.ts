@@ -1,4 +1,6 @@
-import { UsuarioResponse, PacienteBase, DoctorBase } from "./api.types";
+// src/types/auth.types.ts
+import { UsuarioResponse, PacienteBase } from "./api.types";
+import type { ProfessionalSubmitData } from "@/features/auth/components/ProfessionalRegisterForm/types";
 
 /**
  * Datos para login
@@ -25,7 +27,8 @@ export interface PatientRegisterData {
 }
 
 /**
- * Datos para registro COMBINADO de doctor (NUEVO)
+ * Datos para registro COMBINADO de doctor (NUEVO) ✅
+ * Usa la misma estructura que ProfessionalSubmitData
  */
 export interface DoctorRegisterData {
   usuario: {
@@ -36,8 +39,42 @@ export interface DoctorRegisterData {
     telefono: string;
     tipo_usuario: "doctor";
   };
-  doctor: DoctorBase;
+  doctor: {
+    // Campos requeridos
+    especialidad: string;
+    cedula_profesional: string;
+    consultorio: string;
+    costo_consulta: number;
+
+    // Campos opcionales
+    direccion_consultorio?: string;
+    ciudad?: string;
+    estado?: string;
+    codigo_postal?: string;
+    anos_experiencia?: number;
+    latitud?: number;
+    longitud?: number;
+    duracion_cita_minutos?: number;
+    universidad?: string;
+    biografia?: string;
+    foto_url?: string;
+    acepta_seguro: boolean;
+    atiende_domicilio: boolean;
+    atiende_videollamada: boolean;
+  };
+  horarios: Array<{
+    dia_semana: string;
+    hora_inicio: string;
+    hora_fin: string;
+    activo: boolean;
+  }>;
 }
+
+/**
+ * Re-exportar ProfessionalSubmitData como alias
+ * Para compatibilidad y claridad
+ */
+export type { ProfessionalSubmitData };
 
 /**
  * Datos para registro LEGACY (solo usuario)
@@ -69,7 +106,7 @@ export interface AuthContextType extends AuthState {
   logout: () => void;
   registerPatient: (data: PatientRegisterData) => Promise<void>;
   registerDoctor: (data: DoctorRegisterData) => Promise<void>;
-  registerLegacy: (data: LegacyRegisterData) => Promise<void>; // Para compatibilidad
+  registerLegacy: (data: LegacyRegisterData) => Promise<void>;
 }
 
 /**

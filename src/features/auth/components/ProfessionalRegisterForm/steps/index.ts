@@ -2,3 +2,4 @@
 export { BasicInfoStep } from "./BasicInfoStep";
 export { ProfessionalInfoStep } from "./ProfessionalInfoStep";
 export { AdditionalInfoStep } from "./AdditionalInfoStep";
+export { ScheduleManager } from "./ScheduleManager";

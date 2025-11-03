@@ -1,11 +1,7 @@
-//src\services\auth-service.ts
+// src/services/auth-service.ts
 import { apiClient } from "@/lib/api/client";
 import { API_ENDPOINTS } from "@/lib/config/env";
-import {
-  UsuarioLogin,
-  UsuarioResponse,
-  Token,
-} from "@/types/api.types";
+import { UsuarioLogin, UsuarioResponse, Token } from "@/types/api.types";
 import { JWTPayload } from "@/types/jwt.types";
 import {
   PatientRegisterData,
@@ -32,13 +28,22 @@ export const authService = {
   },
 
   /**
-   * Register a new doctor (REGISTRO COMBINADO - RECOMENDADO)
+   * Register a new doctor (REGISTRO COMBINADO - CORREGIDO) ✅
    */
   async registerDoctor(data: DoctorRegisterData): Promise<Token> {
+    console.log("🔵 [auth-service] Datos recibidos:", data);
+    console.log(
+      "🟢 [auth-service] Enviando a API:",
+      JSON.stringify(data, null, 2)
+    );
+
+    // ✅ Enviar los datos exactamente como vienen
     const response = await apiClient.post<Token>(
       API_ENDPOINTS.REGISTRO.DOCTOR,
       data
     );
+
+    console.log("✅ [auth-service] Respuesta recibida:", response);
 
     if (response.access_token) {
       apiClient.saveAuthData(response.access_token);
@@ -144,7 +149,7 @@ export const authService = {
     try {
       const payload = this.decodeToken(token);
       if (!payload) return false;
-      return Date.now() < payload.exp * 1000; // exp está en segundos
+      return Date.now() < payload.exp * 1000;
     } catch {
       return false;
     }
