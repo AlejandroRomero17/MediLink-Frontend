@@ -1,4 +1,4 @@
-// src/features/auth/components/ProfessionalRegisterForm/types.ts
+// En src/features/auth/components/ProfessionalRegisterForm/types.ts
 import { Especialidad } from "@/types/api.types";
 
 export type DiaSemana =
@@ -34,22 +34,24 @@ export interface ProfessionalFormData {
   duracion_cita_minutos: string;
   horarios: HorarioDoctor[];
 
-  // Información adicional (Paso 3)
+  // Información adicional (Paso 3) - AHORA OBLIGATORIOS
   direccion_consultorio: string;
   ciudad: string;
   estado: string;
   codigo_postal: string;
-  latitud: string;
-  longitud: string;
   anos_experiencia: string;
   universidad: string;
   biografia: string;
   foto_url: string;
 
-  // Opciones de servicio (Paso 3)
+  // Opciones de servicio (Paso 3) - AHORA OBLIGATORIOS
   acepta_seguro: boolean;
   atiende_domicilio: boolean;
   atiende_videollamada: boolean;
+
+  // Coordenadas (opcionales)
+  latitud: string;
+  longitud: string;
 }
 
 export interface ProfessionalSubmitData {
@@ -62,24 +64,33 @@ export interface ProfessionalSubmitData {
     tipo_usuario: "doctor";
   };
   doctor: {
+    // Campos requeridos
     especialidad: Especialidad;
     cedula_profesional: string;
     consultorio: string;
-    direccion_consultorio?: string;
-    ciudad?: string;
-    estado?: string;
-    codigo_postal?: string;
-    anos_experiencia?: number;
-    latitud?: number;
-    longitud?: number;
+
+    // ✅ AHORA OBLIGATORIOS (según tu modelo de backend)
+    direccion_consultorio: string;
+    ciudad: string;
+    estado: string;
+    codigo_postal: string;
+    anos_experiencia: number;
+    duracion_cita_minutos: number;
+    universidad: string;
+
+    // Campos de servicio ✅ OBLIGATORIOS
+    acepta_seguro: boolean;
+    atiende_domicilio: boolean;
+    atiende_videollamada: boolean;
+
+    // Campos obligatorios del modelo
     costo_consulta: number;
-    duracion_cita_minutos?: number;
-    universidad?: string;
+
+    // Campos opcionales
     biografia?: string;
     foto_url?: string;
-    acepta_seguro?: boolean;
-    atiende_domicilio?: boolean;
-    atiende_videollamada?: boolean;
+    latitud?: number;
+    longitud?: number;
   };
   horarios: HorarioDoctor[];
 }

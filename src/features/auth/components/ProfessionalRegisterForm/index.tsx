@@ -17,6 +17,7 @@ import type {
   ProfessionalSubmitData,
   HorarioDoctor,
 } from "./types";
+import { Especialidad } from "@/types/api.types";
 
 interface ProfessionalRegisterFormProps {
   onSubmit: (data: ProfessionalSubmitData) => void;
@@ -50,7 +51,7 @@ export const ProfessionalRegisterForm = ({
     password: "",
     confirmPassword: "",
     // Paso 2 - Información profesional
-    especialidad: "" as any,
+    especialidad: "" as Especialidad, // ✅ Corregido: usar tipo específico en lugar de any
     cedula_profesional: "",
     consultorio: "",
     costo_consulta: "",
@@ -146,28 +147,26 @@ export const ProfessionalRegisterForm = ({
         consultorio: formData.consultorio,
         costo_consulta: parseFloat(formData.costo_consulta),
 
-        // Campos opcionales - solo incluir si tienen valor
-        ...(formData.direccion_consultorio && {
-          direccion_consultorio: formData.direccion_consultorio,
-        }),
-        ...(formData.ciudad && { ciudad: formData.ciudad }),
-        ...(formData.estado && { estado: formData.estado }),
-        ...(formData.codigo_postal && {
-          codigo_postal: formData.codigo_postal,
-        }),
+        // ✅ Campos ahora obligatorios según el backend
+        direccion_consultorio: formData.direccion_consultorio || "Por definir",
+        ciudad: formData.ciudad || "Por definir",
+        estado: formData.estado || "Por definir",
+        codigo_postal: formData.codigo_postal || "00000",
+        anos_experiencia: formData.anos_experiencia
+          ? parseInt(formData.anos_experiencia)
+          : 0,
+        duracion_cita_minutos: formData.duracion_cita_minutos
+          ? parseInt(formData.duracion_cita_minutos)
+          : 30,
+        universidad: formData.universidad || "Por definir",
+
+        // Campos opcionales
         ...(formData.latitud && {
           latitud: parseFloat(formData.latitud),
         }),
         ...(formData.longitud && {
           longitud: parseFloat(formData.longitud),
         }),
-        ...(formData.anos_experiencia && {
-          anos_experiencia: parseInt(formData.anos_experiencia),
-        }),
-        ...(formData.duracion_cita_minutos && {
-          duracion_cita_minutos: parseInt(formData.duracion_cita_minutos),
-        }),
-        ...(formData.universidad && { universidad: formData.universidad }),
         ...(formData.biografia && { biografia: formData.biografia }),
         ...(formData.foto_url && { foto_url: formData.foto_url }),
 

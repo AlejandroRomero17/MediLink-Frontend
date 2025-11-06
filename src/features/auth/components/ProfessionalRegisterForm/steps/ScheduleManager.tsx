@@ -99,10 +99,11 @@ export const ScheduleManager = ({
     onChange(nuevosHorarios);
   };
 
+  // ✅ CORREGIDO: Tipos específicos en lugar de any
   const actualizarHorario = (
     index: number,
     campo: keyof HorarioDoctor,
-    valor: any
+    valor: string | boolean | DiaSemana
   ) => {
     const nuevosHorarios = [...horarios];
     nuevosHorarios[index] = { ...nuevosHorarios[index], [campo]: valor };

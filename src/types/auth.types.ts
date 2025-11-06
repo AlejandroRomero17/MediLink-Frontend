@@ -44,23 +44,25 @@ export interface DoctorRegisterData {
     especialidad: string;
     cedula_profesional: string;
     consultorio: string;
+    direccion_consultorio: string;
+    ciudad: string;
+    estado: string;
+    codigo_postal: string;
+    anos_experiencia: number;
+    duracion_cita_minutos: number;
+    universidad: string;
     costo_consulta: number;
 
-    // Campos opcionales
-    direccion_consultorio?: string;
-    ciudad?: string;
-    estado?: string;
-    codigo_postal?: string;
-    anos_experiencia?: number;
-    latitud?: number;
-    longitud?: number;
-    duracion_cita_minutos?: number;
-    universidad?: string;
-    biografia?: string;
-    foto_url?: string;
+    // Campos de servicio requeridos
     acepta_seguro: boolean;
     atiende_domicilio: boolean;
     atiende_videollamada: boolean;
+
+    // Campos opcionales
+    biografia?: string;
+    foto_url?: string;
+    latitud?: number;
+    longitud?: number;
   };
   horarios: Array<{
     dia_semana: string;

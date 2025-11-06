@@ -4,11 +4,21 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { authService } from "@/services/auth-service";
-import { UsuarioLogin, UsuarioResponse } from "@/types/api.types";
+import { UsuarioLogin, UsuarioResponse, ApiError } from "@/types/api.types";
 import { useToast } from "@/hooks/use-toast";
 import { useState, useEffect } from "react";
 import type { RegisterSubmitData } from "@/features/auth/components/RegisterForm/types";
 import type { ProfessionalSubmitData } from "@/features/auth/components/ProfessionalRegisterForm/types";
+import type { DoctorRegisterData } from "@/types/auth.types";
+
+// Tipo para errores de Axios con estructura conocida
+interface AxiosError {
+  response?: {
+    status: number;
+    data: ApiError;
+  };
+  message: string;
+}
 
 export function useAuth() {
   const router = useRouter();
@@ -72,13 +82,47 @@ export function useAuth() {
   const registerDoctorMutation = useMutation({
     mutationFn: async (data: ProfessionalSubmitData) => {
       console.log("🔵 [useAuth] Datos recibidos:", data);
-      console.log(
-        "🟢 [useAuth] Enviando al servicio:",
-        JSON.stringify(data, null, 2)
-      );
 
-      // ✅ Enviar los datos SIN transformar
-      const tokenResponse = await authService.registerDoctor(data);
+      // ✅ Transformar ProfessionalSubmitData a DoctorRegisterData
+      const doctorData: DoctorRegisterData = {
+        usuario: {
+          nombre: data.usuario.nombre,
+          apellido: data.usuario.apellido,
+          email: data.usuario.email,
+          telefono: data.usuario.telefono,
+          password: data.usuario.password,
+          tipo_usuario: "doctor" as const,
+        },
+        doctor: {
+          especialidad: data.doctor.especialidad,
+          cedula_profesional: data.doctor.cedula_profesional,
+          consultorio: data.doctor.consultorio,
+          direccion_consultorio: data.doctor.direccion_consultorio,
+          ciudad: data.doctor.ciudad,
+          estado: data.doctor.estado,
+          codigo_postal: data.doctor.codigo_postal,
+          anos_experiencia: data.doctor.anos_experiencia,
+          duracion_cita_minutos: data.doctor.duracion_cita_minutos,
+          universidad: data.doctor.universidad,
+          costo_consulta: data.doctor.costo_consulta,
+          acepta_seguro: data.doctor.acepta_seguro,
+          atiende_domicilio: data.doctor.atiende_domicilio,
+          atiende_videollamada: data.doctor.atiende_videollamada,
+          biografia: data.doctor.biografia,
+          foto_url: data.doctor.foto_url,
+          latitud: data.doctor.latitud,
+          longitud: data.doctor.longitud,
+        },
+        horarios: data.horarios.map((horario) => ({
+          dia_semana: horario.dia_semana,
+          hora_inicio: horario.hora_inicio,
+          hora_fin: horario.hora_fin,
+          activo: horario.activo,
+        })),
+      };
+
+      console.log("🟢 [useAuth] Datos transformados:", doctorData);
+      const tokenResponse = await authService.registerDoctor(doctorData);
       return tokenResponse;
     },
     onSuccess: (response) => {
@@ -90,21 +134,36 @@ export function useAuth() {
       });
       router.push("/doctor");
     },
-    onError: (error: any) => {
+    onError: (error: AxiosError | Error) => {
       console.error("❌ Error en registro:", error);
 
-      if (error.response?.status === 422) {
+      // Manejar error de validación (422)
+      if ("response" in error && error.response?.status === 422) {
         console.error("📋 Error de validación:", error.response.data);
-      }
 
-      toast({
-        title: "Error en el registro",
-        description:
-          error.response?.data?.detail?.[0]?.msg ||
-          error.message ||
-          "No se pudo completar el registro.",
-        variant: "destructive",
-      });
+        // Extraer mensaje de error de validación
+        const validationError = error.response.data.detail;
+        let errorMessage = "Error de validación en los datos.";
+
+        if (Array.isArray(validationError) && validationError.length > 0) {
+          errorMessage = validationError[0].msg || errorMessage;
+        } else if (typeof validationError === "string") {
+          errorMessage = validationError;
+        }
+
+        toast({
+          title: "Error en el registro",
+          description: errorMessage,
+          variant: "destructive",
+        });
+      } else {
+        // Error genérico
+        toast({
+          title: "Error en el registro",
+          description: error.message || "No se pudo completar el registro.",
+          variant: "destructive",
+        });
+      }
     },
   });
 

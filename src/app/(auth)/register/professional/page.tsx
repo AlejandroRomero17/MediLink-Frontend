@@ -1,10 +1,27 @@
-//src\app\(auth)\register\professional\page.tsx
+// src/app/(auth)/register/professional/page.tsx
 "use client";
 
 import { AuthHeader } from "@/features/auth/components/AuthHeader";
 import { ProfessionalRegisterForm } from "@/features/auth/components/ProfessionalRegisterForm";
 import { useAuth } from "@/hooks/use-auth";
 import type { ProfessionalSubmitData } from "@/features/auth/components/ProfessionalRegisterForm/types";
+
+// Tipo para errores de validación del backend
+interface ValidationError {
+  loc?: (string | number)[];
+  msg?: string;
+  type?: string;
+}
+
+// Tipo para errores de Axios
+interface AxiosError extends Error {
+  response?: {
+    status: number;
+    data?: {
+      detail?: string | ValidationError[];
+    };
+  };
+}
 
 export default function ProfessionalRegisterPage() {
   const { registerDoctor, isRegisteringDoctor } = useAuth();
@@ -111,7 +128,7 @@ export default function ProfessionalRegisterPage() {
     };
 
     const camposFaltantes = Object.entries(camposRequeridos)
-      .filter(([_, presente]) => !presente)
+      .filter(([, presente]) => !presente)
       .map(([campo]) => campo);
 
     if (camposFaltantes.length > 0) {
@@ -169,25 +186,42 @@ export default function ProfessionalRegisterPage() {
       // Llamar a la función registerDoctor del hook
       await registerDoctor(data);
       console.log("✅ Registro completado exitosamente");
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("\n=== ❌ ERROR CAPTURADO ===");
-      console.error("Tipo de error:", error.constructor.name);
-      console.error("Mensaje:", error.message);
+      console.error(
+        "Tipo de error:",
+        error instanceof Error ? error.constructor.name : typeof error
+      );
+      console.error(
+        "Mensaje:",
+        error instanceof Error ? error.message : "Error desconocido"
+      );
 
-      if (error.response) {
-        console.error("Status:", error.response.status);
-        console.error("Data:", error.response.data);
+      const axiosError = error as AxiosError;
+
+      if (axiosError.response) {
+        console.error("Status:", axiosError.response.status);
+        console.error("Data:", axiosError.response.data);
 
         // Si es un error 422, mostrar detalles de validación
-        if (error.response.status === 422 && error.response.data?.detail) {
+        if (
+          axiosError.response.status === 422 &&
+          axiosError.response.data?.detail
+        ) {
           console.error("\n=== 📋 DETALLES DE VALIDACIÓN (422) ===");
-          error.response.data.detail.forEach((err: any, index: number) => {
-            console.error(`Error ${index + 1}:`, {
-              ubicación: err.loc?.join(" → "),
-              mensaje: err.msg,
-              tipo: err.type,
+          const detail = axiosError.response.data.detail;
+
+          if (Array.isArray(detail)) {
+            detail.forEach((err: ValidationError, index: number) => {
+              console.error(`Error ${index + 1}:`, {
+                ubicación: err.loc?.join(" → "),
+                mensaje: err.msg,
+                tipo: err.type,
+              });
             });
-          });
+          } else if (typeof detail === "string") {
+            console.error("Error:", detail);
+          }
         }
       }
 

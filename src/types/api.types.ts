@@ -1,7 +1,7 @@
 // src/types/api.types.ts
 
 // ============ ENUMS ============
-// Los valores deben coincidir EXACTAMENTE con los del backend (minúsculas)
+// Los valores deben coincidir EXACTAMENTE con los del backend 
 export type TipoUsuario = "paciente" | "doctor" | "admin";
 export type Genero = "masculino" | "femenino" | "otro";
 export type EstadoCita =
