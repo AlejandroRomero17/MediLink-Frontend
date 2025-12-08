@@ -9,6 +9,8 @@ import {
   FileText,
   Video,
   AlertCircle,
+  X,
+  CheckCircle2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -32,7 +34,6 @@ interface CrearCitaDialogProps {
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
   onSuccess?: () => void;
-  // onError?: (error: Error) => void;
   onError?: (error: unknown) => void;
 }
 
@@ -153,6 +154,7 @@ export function CrearCitaDialog({
           notas_paciente: "",
           es_videollamada: false,
         });
+        setValidationError(null);
       }
     }
     setOpen(newOpen);
@@ -163,70 +165,110 @@ export function CrearCitaDialog({
       {trigger && <div onClick={() => handleOpenChange(true)}>{trigger}</div>}
 
       <Dialog open={open} onOpenChange={handleOpenChange}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Agendar Nueva Cita</DialogTitle>
-            <DialogDescription>
-              {doctorNombre
-                ? `Agendar cita con ${doctorNombre}`
-                : "Completa la información para agendar tu cita"}
-            </DialogDescription>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto bg-white dark:bg-slate-900 border-2 border-border/50 shadow-2xl">
+          {/* Header mejorado */}
+          <DialogHeader className="space-y-3 pb-4 border-b border-border/50">
+            <div className="flex items-start justify-between">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 rounded-xl bg-gradient-primary">
+                  <Calendar className="h-5 w-5 text-white" />
+                </div>
+                <div>
+                  <DialogTitle className="text-xl md:text-2xl font-bold text-foreground">
+                    Agendar Nueva Cita
+                  </DialogTitle>
+                  <DialogDescription className="text-sm md:text-base text-muted-foreground mt-1">
+                    {doctorNombre ? (
+                      <span className="flex items-center gap-2 mt-1">
+                        <Stethoscope className="h-4 w-4 text-primary" />
+                        <span className="font-medium text-foreground">
+                          {doctorNombre}
+                        </span>
+                      </span>
+                    ) : (
+                      "Completa la información para agendar tu cita"
+                    )}
+                  </DialogDescription>
+                </div>
+              </div>
+            </div>
           </DialogHeader>
 
+          {/* Alert de validación */}
           {validationError && (
-            <Alert variant="destructive">
+            <Alert
+              variant="destructive"
+              className="animate-slide-up border-red-200 dark:border-red-900"
+            >
               <AlertCircle className="h-4 w-4" />
-              <AlertDescription>{validationError}</AlertDescription>
+              <AlertDescription className="text-sm font-medium">
+                {validationError}
+              </AlertDescription>
             </Alert>
           )}
 
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit} className="space-y-5 md:space-y-6 py-2">
             {/* Fecha y Hora */}
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="fecha">
-                  <Calendar className="h-4 w-4 inline mr-2" />
-                  Fecha *
-                </Label>
-                <Input
-                  id="fecha"
-                  type="date"
-                  value={formData.fecha}
-                  onChange={(e) => {
-                    setFormData({ ...formData, fecha: e.target.value });
-                    setValidationError(null);
-                  }}
-                  min={new Date().toISOString().split("T")[0]}
-                  required
-                  disabled={isCreatingCita}
-                  className="w-full"
-                />
-              </div>
+            <div className="space-y-4">
+              <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
+                <Clock className="h-4 w-4 text-primary" />
+                Fecha y Hora de la Cita
+              </h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label
+                    htmlFor="fecha"
+                    className="text-sm font-medium text-foreground flex items-center gap-2"
+                  >
+                    <Calendar className="h-3.5 w-3.5 text-muted-foreground" />
+                    Fecha *
+                  </Label>
+                  <Input
+                    id="fecha"
+                    type="date"
+                    value={formData.fecha}
+                    onChange={(e) => {
+                      setFormData({ ...formData, fecha: e.target.value });
+                      setValidationError(null);
+                    }}
+                    min={new Date().toISOString().split("T")[0]}
+                    required
+                    disabled={isCreatingCita}
+                    className="w-full h-11 bg-background text-foreground border-2 border-input focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all"
+                  />
+                </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="hora">
-                  <Clock className="h-4 w-4 inline mr-2" />
-                  Hora *
-                </Label>
-                <Input
-                  id="hora"
-                  type="time"
-                  value={formData.hora}
-                  onChange={(e) => {
-                    setFormData({ ...formData, hora: e.target.value });
-                    setValidationError(null);
-                  }}
-                  required
-                  disabled={isCreatingCita}
-                  className="w-full"
-                />
+                <div className="space-y-2">
+                  <Label
+                    htmlFor="hora"
+                    className="text-sm font-medium text-foreground flex items-center gap-2"
+                  >
+                    <Clock className="h-3.5 w-3.5 text-muted-foreground" />
+                    Hora *
+                  </Label>
+                  <Input
+                    id="hora"
+                    type="time"
+                    value={formData.hora}
+                    onChange={(e) => {
+                      setFormData({ ...formData, hora: e.target.value });
+                      setValidationError(null);
+                    }}
+                    required
+                    disabled={isCreatingCita}
+                    className="w-full h-11 bg-background text-foreground border-2 border-input focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all"
+                  />
+                </div>
               </div>
             </div>
 
             {/* Motivo */}
             <div className="space-y-2">
-              <Label htmlFor="motivo">
-                <Stethoscope className="h-4 w-4 inline mr-2" />
+              <Label
+                htmlFor="motivo"
+                className="text-sm font-medium text-foreground flex items-center gap-2"
+              >
+                <Stethoscope className="h-3.5 w-3.5 text-muted-foreground" />
                 Motivo de la Consulta *
               </Label>
               <textarea
@@ -237,23 +279,39 @@ export function CrearCitaDialog({
                   setValidationError(null);
                 }}
                 placeholder="Describe el motivo principal de tu consulta (mínimo 10 caracteres)"
-                className="w-full h-24 rounded-lg border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full h-24 rounded-lg border-2 border-input bg-background text-foreground px-3 py-2.5 text-sm placeholder:text-muted-foreground focus:border-primary focus:ring-2 focus:ring-primary/20 disabled:opacity-50 disabled:cursor-not-allowed transition-all resize-none"
                 minLength={10}
                 maxLength={500}
                 required
                 disabled={isCreatingCita}
               />
-              <p className="text-xs text-gray-500 flex justify-between">
-                <span>Mínimo 10 caracteres</span>
-                <span>{formData.motivo.length}/500 caracteres</span>
-              </p>
+              <div className="flex justify-between items-center">
+                <p className="text-xs text-muted-foreground">
+                  Mínimo 10 caracteres
+                </p>
+                <p
+                  className={`text-xs font-medium ${
+                    formData.motivo.length >= 10
+                      ? "text-emerald-600 dark:text-emerald-400"
+                      : "text-muted-foreground"
+                  }`}
+                >
+                  {formData.motivo.length}/500
+                </p>
+              </div>
             </div>
 
             {/* Síntomas */}
             <div className="space-y-2">
-              <Label htmlFor="sintomas">
-                <FileText className="h-4 w-4 inline mr-2" />
-                Síntomas (opcional)
+              <Label
+                htmlFor="sintomas"
+                className="text-sm font-medium text-foreground flex items-center gap-2"
+              >
+                <FileText className="h-3.5 w-3.5 text-muted-foreground" />
+                Síntomas
+                <span className="text-xs text-muted-foreground font-normal">
+                  (opcional)
+                </span>
               </Label>
               <textarea
                 id="sintomas"
@@ -261,67 +319,114 @@ export function CrearCitaDialog({
                 onChange={(e) =>
                   setFormData({ ...formData, sintomas: e.target.value })
                 }
-                placeholder="Describe tus síntomas actuales, duración, intensidad, etc."
-                className="w-full h-20 rounded-lg border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 disabled:opacity-50 disabled:cursor-not-allowed"
+                placeholder="Describe tus síntomas: duración, intensidad, frecuencia..."
+                className="w-full h-20 rounded-lg border-2 border-input bg-background text-foreground px-3 py-2.5 text-sm placeholder:text-muted-foreground focus:border-primary focus:ring-2 focus:ring-primary/20 disabled:opacity-50 disabled:cursor-not-allowed transition-all resize-none"
                 disabled={isCreatingCita}
+                maxLength={300}
               />
+              <p className="text-xs text-muted-foreground text-right">
+                {formData.sintomas.length}/300
+              </p>
             </div>
 
             {/* Notas adicionales */}
             <div className="space-y-2">
-              <Label htmlFor="notas">Notas Adicionales (opcional)</Label>
+              <Label
+                htmlFor="notas"
+                className="text-sm font-medium text-foreground flex items-center gap-2"
+              >
+                <FileText className="h-3.5 w-3.5 text-muted-foreground" />
+                Notas Adicionales
+                <span className="text-xs text-muted-foreground font-normal">
+                  (opcional)
+                </span>
+              </Label>
               <textarea
                 id="notas"
                 value={formData.notas_paciente}
                 onChange={(e) =>
                   setFormData({ ...formData, notas_paciente: e.target.value })
                 }
-                placeholder="Alguna preferencia u observación adicional que quieras compartir con el doctor"
-                className="w-full h-16 rounded-lg border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 disabled:opacity-50 disabled:cursor-not-allowed"
+                placeholder="Preferencias de horario, alergias, medicamentos actuales..."
+                className="w-full h-20 rounded-lg border-2 border-input bg-background text-foreground px-3 py-2.5 text-sm placeholder:text-muted-foreground focus:border-primary focus:ring-2 focus:ring-primary/20 disabled:opacity-50 disabled:cursor-not-allowed transition-all resize-none"
                 disabled={isCreatingCita}
+                maxLength={200}
               />
+              <p className="text-xs text-muted-foreground text-right">
+                {formData.notas_paciente.length}/200
+              </p>
             </div>
 
             {/* Videollamada */}
-            <div className="flex items-center space-x-2 p-3 bg-blue-50 dark:bg-blue-950/30 rounded-lg">
-              <Checkbox
-                id="videollamada"
-                checked={formData.es_videollamada}
-                onCheckedChange={(checked) =>
-                  setFormData({
-                    ...formData,
-                    es_videollamada: checked as boolean,
-                  })
-                }
-                disabled={isCreatingCita}
-              />
-              <Label htmlFor="videollamada" className="cursor-pointer">
-                <Video className="h-4 w-4 inline mr-2" />
-                Esta cita será por videollamada
-              </Label>
+            <div className="space-y-2">
+              <div
+                className={`flex items-start gap-3 p-4 rounded-xl border-2 transition-all ${
+                  formData.es_videollamada
+                    ? "bg-blue-50 dark:bg-blue-950/30 border-blue-200 dark:border-blue-800"
+                    : "bg-muted/30 border-border/50 hover:border-border"
+                }`}
+              >
+                <Checkbox
+                  id="videollamada"
+                  checked={formData.es_videollamada}
+                  onCheckedChange={(checked) =>
+                    setFormData({
+                      ...formData,
+                      es_videollamada: checked as boolean,
+                    })
+                  }
+                  disabled={isCreatingCita}
+                  className="mt-0.5"
+                />
+                <div className="flex-1">
+                  <Label
+                    htmlFor="videollamada"
+                    className="cursor-pointer font-medium text-foreground flex items-center gap-2 mb-1"
+                  >
+                    <Video
+                      className={`h-4 w-4 ${
+                        formData.es_videollamada
+                          ? "text-blue-600 dark:text-blue-400"
+                          : "text-muted-foreground"
+                      }`}
+                    />
+                    Consulta por videollamada
+                  </Label>
+                  <p className="text-xs text-muted-foreground">
+                    La consulta se realizará de forma remota a través de
+                    videollamada
+                  </p>
+                </div>
+              </div>
             </div>
 
-            <DialogFooter>
+            {/* Footer con botones */}
+            <DialogFooter className="flex-col sm:flex-row gap-2 sm:gap-3 pt-4 border-t border-border/50">
               <Button
                 type="button"
                 variant="outline"
                 onClick={() => handleOpenChange(false)}
                 disabled={isCreatingCita}
+                className="w-full sm:w-auto order-2 sm:order-1 h-11 border-2 hover:bg-muted/50"
               >
+                <X className="h-4 w-4 mr-2" />
                 Cancelar
               </Button>
               <Button
                 type="submit"
                 disabled={isCreatingCita}
-                className="min-w-[120px]"
+                className="w-full sm:w-auto order-1 sm:order-2 h-11 min-w-[160px] bg-gradient-primary hover:shadow-glow-primary transition-all"
               >
                 {isCreatingCita ? (
                   <>
-                    <span className="animate-spin mr-2">⟳</span>
+                    <div className="h-4 w-4 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2" />
                     Agendando...
                   </>
                 ) : (
-                  "Agendar Cita"
+                  <>
+                    <CheckCircle2 className="h-4 w-4 mr-2" />
+                    Agendar Cita
+                  </>
                 )}
               </Button>
             </DialogFooter>
