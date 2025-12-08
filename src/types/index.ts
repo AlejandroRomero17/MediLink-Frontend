@@ -84,3 +84,5 @@ export type { JWTPayload } from "./jwt.types";
 // ============ ALIASES ÚTILES ============
 export type { UsuarioResponse as User } from "./api.types";
 export type { UserAppointment as Appointment } from "./appointments.types";
+
+

@@ -2,9 +2,13 @@
 "use client";
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { useRouter } from "next/navigation";
 import { authService } from "@/services/auth-service";
-import { UsuarioLogin, UsuarioResponse, ApiError } from "@/types/api.types";
+import {
+  UsuarioLogin,
+  UsuarioResponse,
+  ApiError,
+  ValidationError,
+} from "@/types/api.types";
 import { useToast } from "@/hooks/use-toast";
 import { useState, useEffect } from "react";
 import type { RegisterSubmitData } from "@/features/auth/components/RegisterForm/types";
@@ -20,8 +24,25 @@ interface AxiosError {
   message: string;
 }
 
+// ⭐ Helper para extraer mensaje de error
+function extractErrorMessage(
+  detail: string | ValidationError[] | undefined
+): string {
+  if (!detail) return "Error desconocido";
+
+  if (typeof detail === "string") {
+    return detail;
+  }
+
+  if (Array.isArray(detail) && detail.length > 0) {
+    const firstError = detail[0];
+    return firstError.msg || "Error de validación";
+  }
+
+  return "Error desconocido";
+}
+
 export function useAuth() {
-  const router = useRouter();
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const [currentUser, setCurrentUser] = useState<UsuarioResponse | null>(null);
@@ -57,33 +78,34 @@ export function useAuth() {
         },
       };
 
-      console.log("Enviando datos de paciente:", patientData);
+      console.log("📋 Enviando datos de paciente:", patientData);
       const tokenResponse = await authService.registerPatient(patientData);
       return tokenResponse;
     },
     onSuccess: (response) => {
       setCurrentUser(response.usuario);
       toast({
-        title: "¡Registro exitoso!",
+        title: "✅ ¡Registro exitoso!",
         description: "Tu cuenta ha sido creada correctamente.",
       });
-      router.push("/user");
+
+      window.location.href = "/user";
     },
     onError: (error: Error) => {
+      console.error("❌ Error en registro paciente:", error);
       toast({
-        title: "Error en el registro",
+        title: "❌ Error en el registro",
         description: error.message || "No se pudo completar el registro.",
         variant: "destructive",
       });
     },
   });
 
-  // Register doctor mutation - CORREGIDO ✅
+  // Register doctor mutation
   const registerDoctorMutation = useMutation({
     mutationFn: async (data: ProfessionalSubmitData) => {
       console.log("🔵 [useAuth] Datos recibidos:", data);
 
-      // ✅ Transformar ProfessionalSubmitData a DoctorRegisterData
       const doctorData: DoctorRegisterData = {
         usuario: {
           nombre: data.usuario.nombre,
@@ -129,37 +151,30 @@ export function useAuth() {
       setCurrentUser(response.usuario);
 
       toast({
-        title: "¡Registro exitoso!",
+        title: "✅ ¡Registro exitoso!",
         description: "Tu cuenta profesional ha sido creada.",
       });
-      router.push("/doctor");
+
+      window.location.href = "/doctor";
     },
     onError: (error: AxiosError | Error) => {
-      console.error("❌ Error en registro:", error);
+      console.error("❌ Error en registro doctor:", error);
 
       // Manejar error de validación (422)
       if ("response" in error && error.response?.status === 422) {
         console.error("📋 Error de validación:", error.response.data);
 
-        // Extraer mensaje de error de validación
-        const validationError = error.response.data.detail;
-        let errorMessage = "Error de validación en los datos.";
-
-        if (Array.isArray(validationError) && validationError.length > 0) {
-          errorMessage = validationError[0].msg || errorMessage;
-        } else if (typeof validationError === "string") {
-          errorMessage = validationError;
-        }
+        // ⭐ Usar helper para extraer mensaje
+        const errorMessage = extractErrorMessage(error.response.data.detail);
 
         toast({
-          title: "Error en el registro",
+          title: "❌ Error en el registro",
           description: errorMessage,
           variant: "destructive",
         });
       } else {
-        // Error genérico
         toast({
-          title: "Error en el registro",
+          title: "❌ Error en el registro",
           description: error.message || "No se pudo completar el registro.",
           variant: "destructive",
         });
@@ -170,25 +185,41 @@ export function useAuth() {
   // Login mutation
   const loginMutation = useMutation({
     mutationFn: async (credentials: UsuarioLogin) => {
+      console.log("🔵 [useAuth] Intentando login...");
       const response = await authService.login(credentials);
+      console.log("✅ [useAuth] Login exitoso:", response);
       return response;
     },
     onSuccess: (response) => {
       setCurrentUser(response.usuario);
 
       toast({
-        title: "Inicio de sesión exitoso",
+        title: "✅ Inicio de sesión exitoso",
         description: `Bienvenido ${response.usuario.nombre}`,
       });
 
       const redirectPath =
         response.usuario.tipo_usuario === "doctor" ? "/doctor" : "/user";
-      router.push(redirectPath);
+
+      console.log("🔄 [useAuth] Redirigiendo a:", redirectPath);
+
+      window.location.href = redirectPath;
     },
-    onError: (error: Error) => {
+    onError: (error: AxiosError | Error) => {
+      console.error("❌ [useAuth] Error en login:", error);
+
+      let errorMessage = "Credenciales inválidas.";
+
+      // ⭐ Usar helper para extraer mensaje
+      if ("response" in error && error.response?.data?.detail) {
+        errorMessage = extractErrorMessage(error.response.data.detail);
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+
       toast({
-        title: "Error al iniciar sesión",
-        description: error.message || "Credenciales inválidas.",
+        title: "❌ Error al iniciar sesión",
+        description: errorMessage,
         variant: "destructive",
       });
     },
@@ -196,15 +227,18 @@ export function useAuth() {
 
   // Logout function
   const logout = () => {
+    console.log("🚪 [useAuth] Cerrando sesión...");
+
     authService.logout();
     setCurrentUser(null);
     queryClient.clear();
 
     toast({
-      title: "Sesión cerrada",
+      title: "👋 Sesión cerrada",
       description: "Has cerrado sesión correctamente.",
     });
-    router.push("/login");
+
+    window.location.href = "/login";
   };
 
   return {

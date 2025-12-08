@@ -1,106 +1,190 @@
 // src/services/auth-service.ts
 import { apiClient } from "@/lib/api/client";
 import { API_ENDPOINTS } from "@/lib/config/env";
-import { UsuarioLogin, UsuarioResponse, Token } from "@/types/api.types";
-import { JWTPayload } from "@/types/jwt.types";
 import {
-  PatientRegisterData,
-  DoctorRegisterData,
-  LegacyRegisterData,
-} from "@/types/auth.types";
+  UsuarioLogin,
+  UsuarioResponse,
+  Token,
+  getErrorMessage,
+} from "@/types/api.types";
+import { JWTPayload } from "@/types/jwt.types";
+import { PatientRegisterData, DoctorRegisterData } from "@/types/auth.types";
+
+// Helper para manejar cookies - PRODUCCIÓN
+const setCookie = (name: string, value: string, days: number = 7) => {
+  if (typeof window === "undefined") return;
+
+  const expires = new Date();
+  expires.setTime(expires.getTime() + days * 24 * 60 * 60 * 1000);
+
+  const isHttps = window.location.protocol === "https:";
+  const secureFlag = isHttps ? ";Secure" : "";
+  const sameSite = isHttps ? "None" : "Lax";
+
+  document.cookie = `${name}=${value};expires=${expires.toUTCString()};path=/;SameSite=${sameSite}${secureFlag}`;
+
+  if (process.env.NODE_ENV === "development") {
+    console.log(
+      `🍪 Cookie '${name}' configurada - HTTPS: ${isHttps}, SameSite: ${sameSite}`
+    );
+  }
+};
+
+const getCookie = (name: string): string | null => {
+  if (typeof window === "undefined") return null;
+
+  const value = `; ${document.cookie}`;
+  const parts = value.split(`; ${name}=`);
+
+  if (parts.length === 2) {
+    return parts.pop()?.split(";").shift() || null;
+  }
+
+  return null;
+};
+
+const deleteCookie = (name: string) => {
+  if (typeof window === "undefined") return;
+
+  const isHttps = window.location.protocol === "https:";
+  const secureFlag = isHttps ? ";Secure" : "";
+  const sameSite = isHttps ? "None" : "Lax";
+
+  document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 UTC;path=/;SameSite=${sameSite}${secureFlag}`;
+
+  if (process.env.NODE_ENV === "development") {
+    console.log(`🗑️ Cookie '${name}' eliminada`);
+  }
+};
 
 export const authService = {
   /**
-   * Register a new patient (REGISTRO COMBINADO - RECOMENDADO)
+   * Register a new patient
    */
   async registerPatient(data: PatientRegisterData): Promise<Token> {
-    const response = await apiClient.post<Token>(
-      API_ENDPOINTS.REGISTRO.PACIENTE,
-      data
-    );
+    console.log("📋 Registrando paciente...");
 
-    if (response.access_token) {
-      apiClient.saveAuthData(response.access_token);
-      this.setCurrentUser(response.usuario);
+    try {
+      const response = await apiClient.post<Token>(
+        API_ENDPOINTS.REGISTRO.PACIENTE,
+        data
+      );
+
+      if (response.access_token) {
+        this.saveAuthToken(response.access_token);
+        this.setCurrentUser(response.usuario);
+        console.log("✅ Paciente registrado exitosamente");
+      }
+
+      return response;
+    } catch (error: unknown) {
+      const errorMessage = getErrorMessage(error);
+      console.error("❌ Error en registro de paciente:", errorMessage);
+      throw error;
     }
-
-    return response;
   },
 
   /**
-   * Register a new doctor (REGISTRO COMBINADO - CORREGIDO) ✅
+   * Register a new doctor
    */
   async registerDoctor(data: DoctorRegisterData): Promise<Token> {
-    console.log("🔵 [auth-service] Datos recibidos:", data);
-    console.log(
-      "🟢 [auth-service] Enviando a API:",
-      JSON.stringify(data, null, 2)
-    );
+    console.log("🔵 Registrando doctor...");
 
-    // ✅ Enviar los datos exactamente como vienen
-    const response = await apiClient.post<Token>(
-      API_ENDPOINTS.REGISTRO.DOCTOR,
-      data
-    );
+    try {
+      const response = await apiClient.post<Token>(
+        API_ENDPOINTS.REGISTRO.DOCTOR,
+        data
+      );
 
-    console.log("✅ [auth-service] Respuesta recibida:", response);
+      console.log("✅ Doctor registrado:", response);
 
-    if (response.access_token) {
-      apiClient.saveAuthData(response.access_token);
-      this.setCurrentUser(response.usuario);
+      if (response.access_token) {
+        this.saveAuthToken(response.access_token);
+        this.setCurrentUser(response.usuario);
+      }
+
+      return response;
+    } catch (error: unknown) {
+      const errorMessage = getErrorMessage(error);
+      console.error("❌ Error en registro de doctor:", errorMessage);
+      throw error;
     }
-
-    return response;
   },
 
   /**
-   * Legacy register (solo crea usuario, NO PERFIL)
-   */
-  async registerLegacy(data: LegacyRegisterData): Promise<Token> {
-    const response = await apiClient.post<Token>(
-      API_ENDPOINTS.AUTH.REGISTER,
-      data
-    );
-
-    if (response.access_token) {
-      apiClient.saveAuthData(response.access_token);
-      this.setCurrentUser(response.usuario);
-    }
-
-    return response;
-  },
-
-  /**
-   * Login user (returns Token with JWT and usuario)
+   * Login user
    */
   async login(credentials: UsuarioLogin): Promise<Token> {
-    const response = await apiClient.post<Token>(
-      API_ENDPOINTS.AUTH.LOGIN,
-      credentials
-    );
+    console.log("🔵 Iniciando sesión...");
 
-    if (response.access_token) {
-      apiClient.saveAuthData(response.access_token);
-      this.setCurrentUser(response.usuario);
+    try {
+      const response = await apiClient.post<Token>(
+        API_ENDPOINTS.AUTH.LOGIN,
+        credentials
+      );
+
+      console.log("✅ Sesión iniciada");
+
+      if (response.access_token) {
+        this.saveAuthToken(response.access_token);
+        this.setCurrentUser(response.usuario);
+
+        if (process.env.NODE_ENV === "development") {
+          console.log("👤 Tipo de usuario:", response.usuario.tipo_usuario);
+        }
+      }
+
+      return response;
+    } catch (error: unknown) {
+      const errorMessage = getErrorMessage(error);
+      console.error("❌ Error en login:", errorMessage);
+      throw error;
     }
+  },
 
-    return response;
+  /**
+   * Save auth token
+   */
+  saveAuthToken(token: string): void {
+    if (typeof window === "undefined") return;
+
+    localStorage.setItem("access_token", token);
+    setCookie("access_token", token, 7);
+    apiClient.saveAuthData(token);
+
+    if (process.env.NODE_ENV === "development") {
+      console.log("🔐 Token almacenado en localStorage y cookie");
+    }
   },
 
   /**
    * Get user by ID
    */
-  async getUserById(userId: number): Promise<UsuarioResponse> {
-    return await apiClient.get<UsuarioResponse>(
-      API_ENDPOINTS.AUTH.GET_USER(userId.toString())
-    );
+  async getUserById(userId: string): Promise<UsuarioResponse> {
+    try {
+      return await apiClient.get<UsuarioResponse>(
+        API_ENDPOINTS.AUTH.GET_USER(userId)
+      );
+    } catch (error: unknown) {
+      const errorMessage = getErrorMessage(error);
+      console.error("❌ Error obteniendo usuario por ID:", errorMessage);
+      throw error;
+    }
   },
 
   /**
-   * Get current user from API (using token)
+   * Get current user from API
    */
   async getCurrentUserFromAPI(): Promise<UsuarioResponse> {
-    return await apiClient.get<UsuarioResponse>(API_ENDPOINTS.AUTH.ME);
+    try {
+      const user = await apiClient.get<UsuarioResponse>(API_ENDPOINTS.AUTH.ME);
+      this.setCurrentUser(user);
+      return user;
+    } catch (error: unknown) {
+      const errorMessage = getErrorMessage(error);
+      console.error("❌ Error obteniendo usuario actual:", errorMessage);
+      throw error;
+    }
   },
 
   /**
@@ -108,9 +192,15 @@ export const authService = {
    */
   logout(): void {
     apiClient.clearAuthData();
+    deleteCookie("access_token");
+
     if (typeof window !== "undefined") {
       localStorage.removeItem("current_user");
+      localStorage.removeItem("access_token");
+      sessionStorage.clear();
     }
+
+    console.log("🚪 Sesión cerrada");
   },
 
   /**
@@ -135,6 +225,9 @@ export const authService = {
   setCurrentUser(user: UsuarioResponse): void {
     if (typeof window !== "undefined") {
       localStorage.setItem("current_user", JSON.stringify(user));
+      if (process.env.NODE_ENV === "development") {
+        console.log("👤 Usuario guardado en localStorage:", user.email);
+      }
     }
   },
 
@@ -143,14 +236,36 @@ export const authService = {
    */
   isAuthenticated(): boolean {
     if (typeof window === "undefined") return false;
-    const token = localStorage.getItem("access_token");
-    if (!token) return false;
+
+    const token = this.getToken();
+    if (!token) {
+      if (process.env.NODE_ENV === "development") {
+        console.log("🔍 No hay token encontrado");
+      }
+      return false;
+    }
 
     try {
       const payload = this.decodeToken(token);
-      if (!payload) return false;
-      return Date.now() < payload.exp * 1000;
-    } catch {
+      if (!payload) {
+        if (process.env.NODE_ENV === "development") {
+          console.log("🔍 Token inválido o no decodificable");
+        }
+        return false;
+      }
+
+      const isExpired = Date.now() >= payload.exp * 1000;
+      if (isExpired) {
+        if (process.env.NODE_ENV === "development") {
+          console.log("🔍 Token expirado");
+        }
+        this.logout();
+        return false;
+      }
+
+      return true;
+    } catch (error) {
+      console.error("❌ Error decodificando token:", error);
       return false;
     }
   },
@@ -160,18 +275,37 @@ export const authService = {
    */
   getToken(): string | null {
     if (typeof window === "undefined") return null;
-    return localStorage.getItem("access_token");
+
+    const localStorageToken = localStorage.getItem("access_token");
+    if (localStorageToken) return localStorageToken;
+
+    return getCookie("access_token");
   },
 
   /**
-   * Decode JWT token safely and typed
+   * Decode JWT token
    */
   decodeToken(token: string): JWTPayload | null {
     try {
-      const payload = JSON.parse(atob(token.split(".")[1])) as JWTPayload;
+      const base64Url = token.split(".")[1];
+      const base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/");
+      const payload = JSON.parse(window.atob(base64)) as JWTPayload;
       return payload;
-    } catch {
+    } catch (error) {
+      console.error("❌ Error decodificando token:", error);
       return null;
+    }
+  },
+
+  /**
+   * Test API connection
+   */
+  async testConnection(): Promise<boolean> {
+    try {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/health`);
+      return response.ok;
+    } catch {
+      return false;
     }
   },
 };

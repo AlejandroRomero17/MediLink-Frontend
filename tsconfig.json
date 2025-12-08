@@ -2,7 +2,7 @@
   "compilerOptions": {
     "target": "ES2017",
     "lib": ["dom", "dom.iterable", "esnext"],
-    "allowJs": true,  // Ya lo tienes, pero asegúrate que esté en true
+    "allowJs": true,
     "skipLibCheck": true,
     "strict": true,
     "noEmit": true,
@@ -26,7 +26,10 @@
       "@/hooks/*": ["./src/hooks/*"],
       "@/services/*": ["./src/services/*"],
       "@/types/*": ["./src/types/*"],
-      "@/providers/*": ["./src/providers/*"]
+      "@/providers/*": ["./src/providers/*"],
+      "@/lib/api-client": ["./src/lib/api/client.ts"]
+      // Elimina esta línea o corrígela:
+      // "@/lib/api-client": ["./lib/api/client.ts"] // ESTO ESTÁ MAL
     }
   },
   "include": [
@@ -34,7 +37,7 @@
     "**/*.ts",
     "**/*.tsx",
     ".next/types/**/*.ts",
-    "**/*.css"  // Agrega esto
+    "**/*.css"
   ],
   "exclude": ["node_modules"]
 }

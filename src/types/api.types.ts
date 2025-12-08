@@ -1,7 +1,6 @@
 // src/types/api.types.ts
 
 // ============ ENUMS ============
-// Los valores deben coincidir EXACTAMENTE con los del backend 
 export type TipoUsuario = "paciente" | "doctor" | "admin";
 export type Genero = "masculino" | "femenino" | "otro";
 export type EstadoCita =
@@ -35,7 +34,7 @@ export interface UsuarioCreate extends UsuarioBase {
 export interface UsuarioResponse extends UsuarioBase {
   id: number;
   activo: boolean;
-  fecha_registro: string; // ISO datetime
+  fecha_registro: string;
 }
 
 export interface UsuarioLogin {
@@ -45,12 +44,12 @@ export interface UsuarioLogin {
 
 // ============ PACIENTES ============
 export interface PacienteBase {
-  fecha_nacimiento: string; // ISO date
+  fecha_nacimiento: string;
   genero: Genero;
   direccion?: string;
   numero_seguro?: string;
   alergias?: string;
-  tipo_sangre?: string; // A+, A-, B+, B-, AB+, AB-, O+, O-
+  tipo_sangre?: string;
 }
 
 export interface PacienteCreate extends PacienteBase {
@@ -92,7 +91,7 @@ export interface DoctorCompleto extends DoctorResponse {
 
 // ============ CITAS ============
 export interface CitaBase {
-  fecha_hora: string; // ISO datetime
+  fecha_hora: string;
   motivo: string;
   notas?: string;
 }
@@ -137,13 +136,57 @@ export interface ValidationError {
   msg: string;
   type: string;
 }
+
 // ============ TOKEN ============
 export interface Token {
   access_token: string;
   token_type: string;
-  usuario: UsuarioResponse;  // ← Más completo que jwt.types
+  usuario: UsuarioResponse;
 }
 
+// ============ AXIOS ERROR ============
+export interface AxiosErrorResponse {
+  response?: {
+    data?: ApiError;
+    status?: number;
+    statusText?: string;
+  };
+  message: string;
+  code?: string;
+}
 
+// ⭐ Helper function para manejar errores - SIN ANY
+export function getErrorMessage(error: unknown): string {
+  if (error instanceof Error) {
+    return error.message;
+  }
 
+  if (typeof error === "string") {
+    return error;
+  }
 
+  if (typeof error === "object" && error !== null) {
+    // ⭐ Usar Record<string, unknown> en lugar de any
+    const err = error as Record<string, unknown>;
+
+    if (err.response && typeof err.response === "object") {
+      const response = err.response as Record<string, unknown>;
+
+      if (response.data && typeof response.data === "object") {
+        const data = response.data as Record<string, unknown>;
+
+        if (data.detail) {
+          return typeof data.detail === "string"
+            ? data.detail
+            : "Error de validación";
+        }
+      }
+    }
+
+    if (err.message && typeof err.message === "string") {
+      return err.message;
+    }
+  }
+
+  return "Error desconocido";
+}

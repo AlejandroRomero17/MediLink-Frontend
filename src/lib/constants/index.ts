@@ -1,4 +1,5 @@
-// export * from "./metric-cards";
+// src/lib/constants/index.ts
+export * from "./especialidades";
+// export * from "./health-metrics";
+// export * from "./navigation";
 export * from "./patient-alerts";
-// export * from "./testimonials";
-// export * from "./data-flow-steps";

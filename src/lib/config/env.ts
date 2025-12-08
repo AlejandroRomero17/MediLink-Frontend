@@ -1,17 +1,57 @@
+// src/lib/config/env.ts
+// Configuración para producción
+
+// Validar que las variables críticas estén definidas
+const validateEnv = () => {
+  if (typeof window !== "undefined") {
+    // Solo en cliente
+    if (!process.env.NEXT_PUBLIC_API_URL) {
+      console.error("❌ CRÍTICO: NEXT_PUBLIC_API_URL no está definido");
+      console.error("   Agrega NEXT_PUBLIC_API_URL a tus variables de entorno");
+    }
+  }
+};
+
+validateEnv();
+
 export const ENV = {
-  API_URL: process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000",
-  APP_URL: process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000",
+  // ⭐ PRODUCCIÓN: Siempre usar la variable de entorno
+  // No usar valores por defecto locales en producción
+  API_URL:
+    process.env.NEXT_PUBLIC_API_URL ||
+    (typeof window !== "undefined" ? window.location.origin : ""),
+
+  APP_URL:
+    process.env.NEXT_PUBLIC_APP_URL ||
+    (typeof window !== "undefined"
+      ? window.location.origin
+      : "http://localhost:3000"),
+
+  // Método para debug
+  logEnvironment() {
+    if (typeof window !== "undefined") {
+      console.log("🌐 ENV Configuration:");
+      console.log("   API_URL:", this.API_URL);
+      console.log("   APP_URL:", this.APP_URL);
+      console.log("   NODE_ENV:", process.env.NODE_ENV);
+    }
+  },
 } as const;
 
+// Log en desarrollo
+if (process.env.NODE_ENV !== "production" && typeof window !== "undefined") {
+  ENV.logEnvironment();
+}
+
 export const API_ENDPOINTS = {
-  // Registro combinado (NUEVO - RECOMENDADO)
+  // Registro combinado
   REGISTRO: {
     PACIENTE: "/api/registro/paciente",
     DOCTOR: "/api/registro/doctor",
     ADMIN: "/api/registro/admin",
   },
 
-  // Auth endpoints (usuarios) - LEGACY
+  // Auth endpoints (usuarios)
   AUTH: {
     REGISTER: "/api/usuarios/registro",
     LOGIN: "/api/usuarios/login",
