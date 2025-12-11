@@ -4,6 +4,7 @@
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+// ❌ REMOVIDO: import { PWAManager } from "@/components/shared";
 import { NearbyDoctorsMap } from "@/features/dashboard-user/components/nearby-doctors-map";
 import { QuickActionsSection } from "@/features/dashboard-user/components/quick-actions";
 import { SpecialtiesSection } from "@/features/dashboard-user/components/specialties";
@@ -12,20 +13,22 @@ import { DoctorList } from "@/features/search/components/DoctorList";
 import { DoctorSearchSection } from "@/features/search/components/DoctorSearchSection";
 import { useCitas } from "@/hooks/use-citas";
 import { Doctor, SearchFilters, useDoctors } from "@/hooks/use-doctors";
+// ❌ REMOVIDO: import { useAuth } from "@/hooks/use-auth";
 import {
   Activity,
   Calendar,
   CheckCircle,
   Clock,
-  XCircle,
   Sparkles,
   Users,
+  XCircle,
 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
 export default function UserDashboardPage() {
   const { estadisticas, isLoadingEstadisticas } = useCitas();
+  // ❌ REMOVIDO: const { user } = useAuth();
   const {
     searchDoctors,
     isLoading,
@@ -308,6 +311,8 @@ export default function UserDashboardPage() {
         <div className="animate-slide-up animation-delay-100">
           {renderEstadisticas()}
         </div>
+
+        {/* ❌ SECCIÓN PWA REMOVIDA - Ahora está en el header */}
 
         {/* Buscador principal */}
         <div className="animate-slide-up animation-delay-200">

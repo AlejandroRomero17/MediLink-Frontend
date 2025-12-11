@@ -1,17 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { SidebarTrigger } from "@/components/ui/sidebar";
-import {
-  PanelLeftIcon,
-  User,
-  Settings,
-  LogOut,
-  MapPin,
-  ChevronDown,
-  Loader2,
-  RefreshCw,
-} from "lucide-react";
+import { ModeToggle } from "@/components/shared/ModeToggle";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -21,9 +12,22 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import { ModeToggle } from "@/components/shared/ModeToggle";
-import { Badge } from "@/components/ui/badge";
+import { SidebarTrigger } from "@/components/ui/sidebar";
+import { usePWA } from "@/hooks/use-pwa";
+import {
+  Bell,
+  BellOff,
+  ChevronDown,
+  Download,
+  Loader2,
+  LogOut,
+  MapPin,
+  PanelLeftIcon,
+  RefreshCw,
+  Settings,
+  User,
+} from "lucide-react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
 interface LocationData {
@@ -50,9 +54,25 @@ export function UserHeader() {
     country: "",
     isDetected: false,
   });
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [userData, setUserData] = useState<UserData | null>(null);
   const [userLoading, setUserLoading] = useState(true);
+
+  // PWA Hook
+  const {
+    isSupported,
+    isSubscribed,
+    isInstallable,
+    isStandalone,
+    isIOS,
+    isReady,
+    subscribe,
+    unsubscribe,
+    promptInstall,
+    requestNotificationPermission,
+  } = usePWA();
+
+  const [pwaLoading, setPwaLoading] = useState(false);
 
   // Detectar si estamos en producción o desarrollo
   const API_BASE_URL =
@@ -75,30 +95,39 @@ export function UserHeader() {
           return;
         }
 
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 segundos timeout
+
         const response = await fetch(`${API_BASE_URL}/usuarios/me`, {
           method: "GET",
           headers: {
             "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`, // Enviar el token JWT
+            Authorization: `Bearer ${token}`,
           },
+          signal: controller.signal,
         });
+
+        clearTimeout(timeoutId);
 
         if (response.ok) {
           const data = await response.json();
-          console.log("Datos del usuario:", data);
           setUserData(data);
         } else if (response.status === 401) {
           console.error("Token inválido o expirado");
-          toast.error("Sesión expirada. Por favor inicia sesión nuevamente.");
-          // Opcional: redirigir al login
           localStorage.removeItem("access_token");
+          // No mostrar toast para no molestar al usuario
         } else {
           console.error("Error al obtener datos del usuario:", response.status);
-          toast.error("No se pudieron cargar los datos del usuario");
         }
       } catch (error) {
-        console.error("Error fetching user data:", error);
-        toast.error("Error al conectar con el servidor");
+        if (error instanceof Error) {
+          if (error.name === "AbortError") {
+            console.warn("Timeout al conectar con el servidor");
+          } else {
+            console.warn("No se pudo conectar con el servidor. Modo offline.");
+          }
+        }
+        // No mostrar toast para evitar spam
       } finally {
         setUserLoading(false);
       }
@@ -107,101 +136,102 @@ export function UserHeader() {
     fetchUserData();
   }, [API_BASE_URL]);
 
-  // Detectar ubicación del usuario
+  // Detectar ubicación del usuario - Solo una vez al cargar
   useEffect(() => {
+    let mounted = true;
+
     const detectLocation = async () => {
       try {
-        setLoading(true);
-
-        // Intentar con la API del navegador primero
+        // Primero intentar con navegador
         if (navigator.geolocation) {
-          try {
-            const position = await new Promise<GeolocationPosition>(
-              (resolve, reject) => {
-                navigator.geolocation.getCurrentPosition(resolve, reject, {
-                  enableHighAccuracy: true,
-                  timeout: 10000,
-                  maximumAge: 0,
-                });
+          navigator.geolocation.getCurrentPosition(
+            async (position) => {
+              if (!mounted) return;
+
+              try {
+                const response = await fetch(
+                  `https://nominatim.openstreetmap.org/reverse?format=json&lat=${position.coords.latitude}&lon=${position.coords.longitude}&zoom=18&addressdetails=1`,
+                  {
+                    headers: {
+                      "Accept-Language": "es",
+                    },
+                  }
+                );
+
+                if (response.ok && mounted) {
+                  const data = await response.json();
+                  const address = data.address;
+
+                  const city =
+                    address.city ||
+                    address.town ||
+                    address.village ||
+                    address.municipality ||
+                    address.county ||
+                    address.suburb ||
+                    "Ubicación desconocida";
+
+                  setLocation({
+                    city: city,
+                    region: address.state || address.region || "",
+                    country: address.country || "México",
+                    isDetected: true,
+                  });
+                }
+              } catch (error) {
+                console.error("Error con Nominatim:", error);
               }
-            );
-
-            // Usar Nominatim con mayor detalle
-            const response = await fetch(
-              `https://nominatim.openstreetmap.org/reverse?format=json&lat=${position.coords.latitude}&lon=${position.coords.longitude}&zoom=18&addressdetails=1`,
-              {
-                headers: {
-                  "Accept-Language": "es",
-                },
+            },
+            async (error) => {
+              console.warn("Geolocalización no disponible:", error);
+              // Fallback a IP
+              try {
+                const ipResponse = await fetch("https://ipapi.co/json/");
+                if (ipResponse.ok && mounted) {
+                  const data = await ipResponse.json();
+                  setLocation({
+                    city: data.city || "No detectada",
+                    region: data.region || "",
+                    country: data.country_name || "México",
+                    isDetected: false,
+                  });
+                }
+              } catch (ipError) {
+                console.warn("Error con detección por IP:", ipError);
+                if (mounted) {
+                  setLocation({
+                    city: "No detectada",
+                    region: "",
+                    country: "",
+                    isDetected: false,
+                  });
+                }
               }
-            );
-
-            if (response.ok) {
-              const data = await response.json();
-              const address = data.address;
-
-              console.log("Datos de ubicación:", address);
-
-              const city =
-                address.city ||
-                address.town ||
-                address.village ||
-                address.municipality ||
-                address.county ||
-                address.suburb ||
-                "Ubicación desconocida";
-
-              setLocation({
-                city: city,
-                region: address.state || address.region || "",
-                country: address.country || "México",
-                isDetected: true,
-              });
-
-              toast.success(`Ubicación detectada: ${city}`);
-              return;
+            },
+            {
+              enableHighAccuracy: false,
+              timeout: 5000,
+              maximumAge: 300000, // 5 minutos
             }
-          } catch (geoError) {
-            console.error("Error con geolocalización del navegador:", geoError);
-          }
+          );
         }
-
-        // Fallback: usar IP para ubicación aproximada
-        try {
-          const ipResponse = await fetch("https://ipapi.co/json/");
-          if (ipResponse.ok) {
-            const data = await ipResponse.json();
-            setLocation({
-              city: data.city || "Ubicación desconocida",
-              region: data.region || "",
-              country: data.country_name || "México",
-              isDetected: false,
-            });
-            toast.info("Ubicación aproximada detectada por IP");
-          } else {
-            throw new Error("Error con API de IP");
-          }
-        } catch (ipError) {
-          console.error("Error con detección por IP:", ipError);
-          setLocation({
-            city: "No detectada",
-            region: "",
-            country: "",
-            isDetected: false,
-          });
-          toast.warning("No se pudo detectar tu ubicación");
-        }
-      } finally {
-        setLoading(false);
+      } catch (error) {
+        console.error("Error detectando ubicación:", error);
       }
     };
 
     detectLocation();
+
+    return () => {
+      mounted = false;
+    };
   }, []);
 
   const handleRefreshLocation = async () => {
-    toast.info("Actualizando ubicación...");
+    if (loading) return;
+
     setLoading(true);
+    toast.info("Actualizando ubicación...", { duration: 1000 });
 
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
@@ -236,11 +266,11 @@ export function UserHeader() {
                 isDetected: true,
               });
 
-              toast.success("Ubicación actualizada");
+              toast.success("Ubicación actualizada", { duration: 2000 });
             }
           } catch (error) {
             console.error("Error actualizando ubicación:", error);
-            toast.error("No se pudo actualizar la ubicación");
+            toast.error("No se pudo actualizar");
           } finally {
             setLoading(false);
           }
@@ -249,6 +279,10 @@ export function UserHeader() {
           console.error("Error de geolocalización:", error);
           toast.error("Activa los permisos de ubicación");
           setLoading(false);
+        },
+        {
+          enableHighAccuracy: true,
+          timeout: 10000,
         }
       );
     } else {
@@ -260,8 +294,107 @@ export function UserHeader() {
   const handleLogout = () => {
     localStorage.removeItem("access_token");
     toast.success("Sesión cerrada correctamente");
-    // Opcional: redirigir al login
     window.location.href = "/login";
+  };
+
+  // PWA Handlers
+  const handleToggleNotifications = async () => {
+    if (pwaLoading) return;
+
+    setPwaLoading(true);
+
+    try {
+      if (isSubscribed) {
+        // Desuscribir
+        const result = await unsubscribe(userData?.id.toString());
+        if (result.success) {
+          toast.success("Notificaciones desactivadas", {
+            description: "Ya no recibirás notificaciones push",
+          });
+        } else {
+          toast.error("Error al desactivar", {
+            description: result.error || "Intenta de nuevo",
+          });
+        }
+      } else {
+        // Primero solicitar permisos
+        console.log("Solicitando permisos de notificación...");
+        const permissionResult = await requestNotificationPermission();
+
+        if (!permissionResult.success) {
+          toast.error("Permisos denegados", {
+            description:
+              "Habilita las notificaciones en la configuración de tu navegador",
+            duration: 5000,
+          });
+          setPwaLoading(false);
+          return;
+        }
+
+        // Luego suscribir
+        console.log("Suscribiendo a notificaciones...");
+        const result = await subscribe(userData?.id.toString());
+
+        if (result.success) {
+          toast.success("¡Notificaciones activadas!", {
+            description: "Recibirás notificaciones sobre citas y alertas",
+          });
+        } else {
+          toast.error("Error al activar", {
+            description: result.error || "Intenta de nuevo más tarde",
+          });
+        }
+      }
+    } catch (error) {
+      console.error("Error con notificaciones:", error);
+      toast.error("Error inesperado", {
+        description: "No se pudieron gestionar las notificaciones",
+      });
+    } finally {
+      setPwaLoading(false);
+    }
+  };
+
+  const handleInstallApp = async () => {
+    if (pwaLoading) return;
+
+    setPwaLoading(true);
+
+    try {
+      console.log("Intentando instalar app...");
+      const result = await promptInstall();
+
+      if (result.success) {
+        if (result.outcome === "accepted") {
+          toast.success("¡App instalada!", {
+            description: "Ahora puedes acceder desde tu pantalla de inicio",
+          });
+        } else {
+          toast.info("Instalación cancelada");
+        }
+      } else {
+        // Si es iOS, mostrar instrucciones
+        if (isIOS) {
+          toast.info("Instalar en iOS", {
+            description:
+              "Toca el botón Compartir y selecciona 'Añadir a pantalla de inicio'",
+            duration: 6000,
+          });
+        } else {
+          toast.error("No disponible", {
+            description:
+              result.error || "La instalación no está disponible ahora",
+          });
+        }
+      }
+    } catch (error) {
+      console.error("Error instalando app:", error);
+      toast.error("Error al instalar", {
+        description: "No se pudo instalar la aplicación",
+      });
+    } finally {
+      setPwaLoading(false);
+    }
   };
 
   // Generar iniciales del usuario
@@ -321,25 +454,14 @@ export function UserHeader() {
                 <div className="flex items-center gap-1.5 text-muted-foreground group">
                   <MapPin className="h-3.5 w-3.5 flex-shrink-0" />
                   <div className="flex items-center gap-1.5">
-                    {loading ? (
-                      <div className="flex items-center gap-1.5">
-                        <Loader2 className="h-3 w-3 animate-spin" />
-                        <p className="text-xs md:text-sm">
-                          Detectando ubicación...
-                        </p>
-                      </div>
-                    ) : (
-                      <>
-                        <p className="text-xs md:text-sm truncate max-w-[180px]">
-                          {location.city}
-                          {location.region && `, ${location.region}`}
-                        </p>
-                        {!location.isDetected && (
-                          <span className="text-[10px] text-muted-foreground/70 italic">
-                            (aprox.)
-                          </span>
-                        )}
-                      </>
+                    <p className="text-xs md:text-sm truncate max-w-[180px]">
+                      {location.city}
+                      {location.region && `, ${location.region}`}
+                    </p>
+                    {!location.isDetected && (
+                      <span className="text-[10px] text-muted-foreground/70 italic">
+                        (aprox.)
+                      </span>
                     )}
                   </div>
                   <Button
@@ -360,24 +482,64 @@ export function UserHeader() {
               {/* Location Badge - Only on small mobile */}
               <div className="flex sm:hidden items-center gap-1.5 mt-1">
                 <MapPin className="h-3 w-3 text-muted-foreground flex-shrink-0" />
-                {loading ? (
-                  <div className="flex items-center gap-1.5">
-                    <Loader2 className="h-2.5 w-2.5 animate-spin" />
-                    <span className="text-xs text-muted-foreground">
-                      Detectando...
-                    </span>
-                  </div>
-                ) : (
-                  <span className="text-xs text-muted-foreground truncate max-w-[120px]">
-                    {location.city}
-                  </span>
-                )}
+                <span className="text-xs text-muted-foreground truncate max-w-[120px]">
+                  {location.city}
+                </span>
               </div>
             </div>
           </div>
 
           {/* Sección Derecha - Actions */}
           <div className="flex items-center gap-2 md:gap-3 flex-shrink-0">
+            {/* PWA Actions - Solo mostrar si está soportado */}
+            {isSupported && isReady && (
+              <>
+                {/* Notification Toggle */}
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="hidden sm:flex h-10 w-10"
+                  onClick={handleToggleNotifications}
+                  disabled={pwaLoading}
+                  title={
+                    isSubscribed
+                      ? "Desactivar notificaciones"
+                      : "Activar notificaciones"
+                  }
+                >
+                  {pwaLoading ? (
+                    <Loader2 className="h-5 w-5 animate-spin" />
+                  ) : isSubscribed ? (
+                    <Bell className="h-5 w-5 text-green-600 dark:text-green-500" />
+                  ) : (
+                    <BellOff className="h-5 w-5 text-muted-foreground" />
+                  )}
+                </Button>
+
+                {/* Install Button - Solo si NO está instalado Y (es instalable O es iOS) */}
+                {!isStandalone && (isInstallable || isIOS) && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="hidden md:flex h-10 w-10"
+                    onClick={handleInstallApp}
+                    disabled={pwaLoading}
+                    title={
+                      isIOS
+                        ? "Instrucciones de instalación"
+                        : "Instalar aplicación"
+                    }
+                  >
+                    {pwaLoading ? (
+                      <Loader2 className="h-5 w-5 animate-spin" />
+                    ) : (
+                      <Download className="h-5 w-5 text-primary" />
+                    )}
+                  </Button>
+                )}
+              </>
+            )}
+
             {/* Theme Toggle */}
             <div className="hidden sm:block">
               <ModeToggle />
@@ -479,8 +641,51 @@ export function UserHeader() {
                   <span className="font-medium">Configuración</span>
                 </DropdownMenuItem>
 
+                {/* PWA Options in Mobile Menu */}
+                {isSupported && (
+                  <>
+                    <div className="sm:hidden">
+                      <DropdownMenuSeparator className="bg-border" />
+
+                      <DropdownMenuItem
+                        className="p-3 cursor-pointer rounded-lg focus:bg-accent focus:text-accent-foreground transition-colors"
+                        onClick={handleToggleNotifications}
+                        disabled={pwaLoading}
+                      >
+                        {isSubscribed ? (
+                          <>
+                            <Bell className="mr-3 h-4 w-4 text-green-600" />
+                            <span className="font-medium">
+                              Notificaciones Activas
+                            </span>
+                          </>
+                        ) : (
+                          <>
+                            <BellOff className="mr-3 h-4 w-4 text-muted-foreground" />
+                            <span className="font-medium">
+                              Activar Notificaciones
+                            </span>
+                          </>
+                        )}
+                      </DropdownMenuItem>
+
+                      {!isStandalone && (isInstallable || isIOS) && (
+                        <DropdownMenuItem
+                          className="p-3 cursor-pointer rounded-lg focus:bg-accent focus:text-accent-foreground transition-colors"
+                          onClick={handleInstallApp}
+                          disabled={pwaLoading}
+                        >
+                          <Download className="mr-3 h-4 w-4 text-muted-foreground" />
+                          <span className="font-medium">Instalar App</span>
+                        </DropdownMenuItem>
+                      )}
+                    </div>
+                  </>
+                )}
+
                 {/* Theme Toggle in Dropdown - Only on mobile */}
                 <div className="sm:hidden">
+                  <DropdownMenuSeparator className="bg-border" />
                   <div className="p-3">
                     <div className="flex items-center justify-between w-full">
                       <span className="font-medium text-sm">Tema</span>
@@ -499,11 +704,8 @@ export function UserHeader() {
                   <div className="flex items-center gap-2">
                     <MapPin className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
                     <div className="text-sm text-foreground truncate">
-                      {loading
-                        ? "Detectando..."
-                        : `${location.city}${
-                            location.region ? `, ${location.region}` : ""
-                          }`}
+                      {location.city}
+                      {location.region && `, ${location.region}`}
                     </div>
                   </div>
                 </div>
